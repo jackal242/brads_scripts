@@ -69,7 +69,6 @@ if ($lwp_id eq ''){
 
 #################################################################
 # Get PID for lwp_id
-# Not really needed
 #################################################################
 $cmd="ps -eL |grep $lwp_id" ;
 print "Running: $cmd \n" if ($debug) ;
