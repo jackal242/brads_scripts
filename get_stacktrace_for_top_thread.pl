@@ -86,6 +86,10 @@ print "Parent PID = $parent_pid\n";
 
 #################################################################
 # Call thread dump
+#
+# If you send tomcat a kill -3 signal it will cause tomcat to 
+# write out a thread dump to it's log file, which I capture and 
+# parse.
 #################################################################
 my $pid= fork() // die "Can't fork : $!" ;
 if ($pid == 0) {
