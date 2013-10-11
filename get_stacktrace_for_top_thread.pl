@@ -104,7 +104,7 @@ while (defined($line=$file->read)) {
 	if ($line =~ /nid=(0x[[:xdigit:]]+)/) {
 		$lwp = hex($1);
 		$line =~ s/nid=/lwp=$lwp nid=/;
-    }
+	}
 	push (@thread_dump_data,$line);
 }
 
