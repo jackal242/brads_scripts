@@ -11,6 +11,7 @@
 use strict;
 use File::Basename qw/basename/;
 use File::Tail;
+use Getopt::Long;
 
 $| =1 ;
 
@@ -29,7 +30,14 @@ my $line;
 my $lwp;
 my @stack_trace=();
 my $cmd ;
+my $samples;
 my $top_intervals=3 ;
+my $result;
+my $count;
+my @cmd_out ;
+my @lwp_list;
+my $count_lwp_list;
+my $help;
 
 #################################################################
 # Usage
@@ -37,26 +45,61 @@ my $top_intervals=3 ;
 sub usage {
 	print "\nUSAGE:\n";
 	print "$progname\n";
+	print "$progname --count ## --samples ## \n";
 	print "\n";
+	print "Count is the number of threads stracktraces to return\n";
+	print "Samples is the number of 'top' samples to run\n";
+	print "\n";
+}
+
+##########################################
+## Get Passed in options
+###########################################
+$result = GetOptions ( 
+	"help"       => \$help, #flag
+	"count=s"    => \$count, #string
+	"samples=s"  => \$samples); # string
+if ($help){
+	usage();
+	exit;
+}
+if (! $count) {
+	$count =1 ;  # Return at least 1 stacktrace for the top thread.
+} else {
+	print "COUNT = $count\n" if ($debug);
+}
+if (! $samples) {
+	$samples=$top_intervals;
+} else {
+	print "TOP SAMPLE SIZE = $samples\n";
 }
 
 #################################################################
 # Get the top thread for tomcat
 #################################################################
-$cmd="top -H -n $top_intervals -b |grep tomcat | grep java | sort -rn -k 9 | head -10" ;
+$cmd="top -H -n $samples -b |grep tomcat | grep java | sort -rn -k 9 | head -10" ;
 print "Running: $cmd \n" if ($debug) ;
-$lwp_id=`$cmd`;
-print $lwp_id if ($debug);
-chomp($lwp_id);
-if ($lwp_id =~ /([0-9]+).*tomcat.*/) {
-   $lwp_id = $1 ;
-} else {
-   print "no lwp id found\n";
-   exit 1;
+@cmd_out=`$cmd`;
+foreach my $line (@cmd_out) {
+	print $line ;
+	$count_lwp_list=@lwp_list;
+	next if ($count_lwp_list >= $count);
+	if ($line =~ /([0-9]+).*tomcat.*/) {
+		if ( grep {$_ eq $1} @lwp_list) {
+			#print "$1 is already in the lwp_list \n";
+		} else {
+			#print "Adding $1 to lwp_list\n";
+			push (@lwp_list, $1) ;
+		}
+	}
+}
+foreach $lwp_id (@lwp_list) {
+	print "LWP_ID=$lwp_id\n" if ($debug);
+	chomp($lwp_id);
 }
 print "====================\n" if ($debug);
+$lwp_id=$lwp_list[0];
 print "Top Tomcat LWP Id = $lwp_id\n";
-
 
 #################################################################
 # Exit if we can't get a lwp id
@@ -111,26 +154,29 @@ while (defined($line=$file->read)) {
 #################################################################
 # Parse the thread dump looking for our single stack trace
 #################################################################
-my $matched=0;
-foreach $line (@thread_dump_data) {
-   if ($line =~ /prio=.*tid=.*lwp=.*nid=.*/) {
-      if ($matched == 1 ) {
-         last; # quit going, we found the stack trace stanza we are looking for
-      }
-      @stack_trace=(); #start of new stack trace stanza, reset the stack_trace
-   }
-   push (@stack_trace, $line);
-   if ($line =~ /lwp=$lwp_id/) {
-      # Matched the lwp_id in this stack trace stanza
-      $matched = 1 ;
-   }
-}
+foreach $lwp_id (@lwp_list) {
+	print "============================================\n";
+	print " LWP_ID = $lwp_id\n";
+	print "============================================\n";
+	my $matched=0;
+	foreach $line (@thread_dump_data) {
+   	if ($line =~ /prio=.*tid=.*lwp=.*nid=.*/) {
+      	if ($matched == 1 ) {
+         	last; # quit going, we found the stack trace stanza we are looking for
+      	}
+      	@stack_trace=(); #start of new stack trace stanza, reset the stack_trace
+   	}
+   	push (@stack_trace, $line);
+   	if ($line =~ /lwp=$lwp_id/) {
+      	# Matched the lwp_id in this stack trace stanza
+      	$matched = 1 ;
+   	}
+	}
 
-#################################################################
-# Return the stack trace stanza
-#################################################################
-print "====================\n\n";
-foreach my $line (@stack_trace) {
-   print $line;
+	#################################################################
+	# Return the stack trace stanza
+	#################################################################
+	foreach my $line (@stack_trace) {
+   	print $line;
+	}
 }
-
