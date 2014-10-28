@@ -160,23 +160,24 @@ foreach $lwp_id (@lwp_list) {
 	print "============================================\n";
 	my $matched=0;
 	foreach $line (@thread_dump_data) {
-   	    if ($line =~ /prio=.*tid=.*lwp=.*nid=.*/) {
-      	        if ($matched == 1 ) {
-         	    last; # quit going, we found the stack trace stanza we are looking for
-      	        }
-      	        @stack_trace=(); #start of new stack trace stanza, reset the stack_trace
-   	    }
-   	    push (@stack_trace, $line);
-   	    if ($line =~ /lwp=$lwp_id/) {
-      	        # Matched the lwp_id in this stack trace stanza
-      	        $matched = 1 ;
-   	    }
+   	if ($line =~ /prio=.*tid=.*lwp=.*nid=.*/) {
+      	if ($matched == 1 ) {
+         	last; # quit going, we found the stack trace stanza we are looking for
+      	}
+      	@stack_trace=(); #start of new stack trace stanza, reset the stack_trace
+   	}
+   	push (@stack_trace, $line);
+   	if ($line =~ /lwp=$lwp_id/) {
+      	# Matched the lwp_id in this stack trace stanza
+      	$matched = 1 ;
+   	}
 	}
 
 	#################################################################
 	# Return the stack trace stanza
 	#################################################################
 	foreach my $line (@stack_trace) {
-   	    print $line;
+   	print $line;
 	}
 }
+
