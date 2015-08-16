@@ -89,13 +89,6 @@ sub lookup_instance_names {
 		my $obj= $json->decode($lookup_results_str);
 		#print Dumper($obj) ;
 		$instance_name_hash{$tmp_instance_id}=$obj->{'Tags'}->[0]->{'AWSName'} ; # Since it will be the first value returned, can use 0
-		#
-		# Other way below
-		# foreach ( @{ $obj->{'Tags'} }) {
-			#print Dumper($_);
-			# my $tmp_aws_name= $_->{'AWSName'} ;
-			# print $tmp_aws_name;
-		# }
 	}
 }
 
