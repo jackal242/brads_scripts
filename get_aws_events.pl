@@ -53,7 +53,7 @@ exit_code_for_nagios() if ($nagios) ;
 ###########################
 sub get_event_data {
 	my $region=shift;
-	my $cmd="aws ec2 describe-instance-status --region $region --filter Name=event.description,Values=* --query '{EventStatus:InstanceStatuses[].{Event:[{InstanceId:InstanceId},{EventDetails:Events[]}]}}'";
+	my $cmd="aws ec2 describe-instance-status --region $region --filter Name=event.description,Values=* --query '{EventStatus:InstanceStatuses[].{Event:[{InstanceId:InstanceId},{EventDetails:Events[]}]}}' --output json";
 	my $events_str=`$cmd`;
 	my $obj= $json->decode($events_str);
 	#print Dumper($obj) ;
@@ -79,7 +79,7 @@ sub get_event_data {
 sub get_aws_name {
 	my $tmp_instance_id=shift;
 	my $tmp_region=shift;
-	my $cmd ="aws ec2 describe-tags --region $tmp_region --filter Name=resource-id,Values=$tmp_instance_id Name=key,Values=Name --query '{Tags:Tags[].{Name:Value}}'"; 
+	my $cmd ="aws ec2 describe-tags --region $tmp_region --filter Name=resource-id,Values=$tmp_instance_id Name=key,Values=Name --query '{Tags:Tags[].{Name:Value}}' --output json"; 
 	my $lookup_results_str=`$cmd`;
 	my $obj= $json->decode($lookup_results_str);
 	#print Dumper($obj) ;
