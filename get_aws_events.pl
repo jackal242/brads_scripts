@@ -21,7 +21,7 @@ my %event_description_hash;
 my $nagios;
 my $result;
 my $count;
-my $aws_lookup="/usr/local/linux/script/aws_lookup";  # Script I have for converting instance ID's to AWS Names.  You'll have to write your own. :)
+my $aws_lookup="/usr/local/my_scripts/aws_lookup";  # Script I have for converting instance ID's to AWS Names.  You'll have to write your own. :)
 
 ##########################################
 # Get Passed in options
