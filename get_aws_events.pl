@@ -65,7 +65,6 @@ sub get_event_data {
 			# print Dumper($_);
 			if ($_->{'InstanceId'}) {
 				$tmp_instance_id= $_->{'InstanceId'};  # String
-				$instance_name_hash{$tmp_instance_id}=$tmp_instance_name;
 			} else {
 				foreach ( @{ $_->{'EventDetails'} }) {
 					# print Dumper($_);
