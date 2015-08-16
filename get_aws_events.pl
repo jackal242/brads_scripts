@@ -58,7 +58,6 @@ sub get_event_data {
 	my $events_str=`$cmd`;
 	my $obj= $json->decode($events_str);
 	#print Dumper($obj) ;
-	#print $obj->{'EventStatus'}[0]->{'Event'}[0]->{'InstanceId'};
 	#print Dumper($obj->{'EventStatus'}[0]->{'Event'}[1]->{'EventDetails'}[0]->{'NotBefore'});
    
 	foreach ( @{ $obj->{'EventStatus'} }) {
