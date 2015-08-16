@@ -69,13 +69,12 @@ sub get_event_data {
 		$event_date_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'NotBefore'};  # String
 		$event_code_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'Code'};  # String
 		$event_description_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'Description'};  # String
-		$instance_name_hash{$tmp_instance_id}=get_aws_name($tmp_instance_id,$region);
-			
+		$instance_name_hash{$tmp_instance_id}=get_aws_name($tmp_instance_id,$region); # go lookup the aws Name Tag
 	}
 }
 
 ####################################################################
-# Sub for looking up AWS Instance Name from the instance-id
+# Sub for looking up AWS Name Tag from the instance-id
 ####################################################################
 sub get_aws_name {
 	my $tmp_instance_id=shift;
