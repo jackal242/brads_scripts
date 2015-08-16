@@ -79,11 +79,11 @@ sub get_event_data {
 sub get_aws_name {
 	my $tmp_instance_id=shift;
 	my $tmp_region=shift;
-	my $cmd ="aws ec2 describe-tags --region $tmp_region --filter Name=resource-id,Values=$tmp_instance_id Name=key,Values=Name --query '{Tags:Tags[].{AWSName:Value}}'"; 
+	my $cmd ="aws ec2 describe-tags --region $tmp_region --filter Name=resource-id,Values=$tmp_instance_id Name=key,Values=Name --query '{Tags:Tags[].{Name:Value}}'"; 
 	my $lookup_results_str=`$cmd`;
 	my $obj= $json->decode($lookup_results_str);
 	#print Dumper($obj) ;
-	return $obj->{'Tags'}->[0]->{'AWSName'} ; # Since it will be the first value returned, can use 0
+	return $obj->{'Tags'}->[0]->{'Name'} ; # Since it will be the first value returned, can use 0
 }
 
 
