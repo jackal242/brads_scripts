@@ -57,23 +57,21 @@ sub get_event_data {
 	my $cmd="aws --region $region ec2 describe-instance-status --filter Name=event.description,Values=* --query '{EventStatus:InstanceStatuses[].{Event:[{InstanceId:InstanceId},{EventDetails:Events[]}]}}'";
 	my $events_str=`$cmd`;
 	my $obj= $json->decode($events_str);
-	# print Dumper($obj) ;
+	#print Dumper($obj) ;
+	#print $obj->{'EventStatus'}[0]->{'Event'}[0]->{'InstanceId'};
+	#print Dumper($obj->{'EventStatus'}[0]->{'Event'}[1]->{'EventDetails'}[0]->{'NotBefore'});
    
 	foreach ( @{ $obj->{'EventStatus'} }) {
 		#print Dumper($_);
-		foreach ( @{ $_->{'Event'} }) {
-			# print Dumper($_);
-			if ($_->{'InstanceId'}) {
-				$tmp_instance_id= $_->{'InstanceId'};  # String
-			} else {
-				foreach ( @{ $_->{'EventDetails'} }) {
-					# print Dumper($_);
-					$event_date_hash{$tmp_instance_id}=$_->{'NotBefore'};  # String
-					$event_code_hash{$tmp_instance_id}=$_->{'Code'};  # String
-					$event_description_hash{$tmp_instance_id}=$_->{'Description'};  # String
-				}
-			}
-		}
+
+		# Event Array 0 is the InstanceID
+		# Event Array 1 is all the EventDetails
+				
+		$tmp_instance_id= $_->{'Event'}[0]->{'InstanceId'};  # String
+		$event_date_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'NotBefore'};  # String
+		$event_code_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'Code'};  # String
+		$event_description_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'Description'};  # String
+			
 	}
 }
 
