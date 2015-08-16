@@ -21,6 +21,7 @@ my %event_description_hash;
 my $nagios;
 my $result;
 my $count;
+my $aws_lookup="/usr/local/linux/script/aws_lookup";  # Script I have for converting instance ID's to AWS Names.  You'll have to write your own. :)
 
 ##########################################
 # Get Passed in options
@@ -55,7 +56,7 @@ sub get_event_data {
 			# print Dumper($_);
 			if ($_->{'InstanceId'}) {
 				$tmp_instance_id= $_->{'InstanceId'};  # String
-				my $cmd="/usr/local/devops/bin/aws_lookup -n $tmp_instance_id";
+				my $cmd="$aws_lookup -n $tmp_instance_id";  #convert the instance-id into a hostname
 				$tmp_instance_name=`$cmd`;
 				chomp ($tmp_instance_name);
 				$tmp_instance_name =~ s/\s+$//;  # remove whitespace from the end
