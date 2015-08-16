@@ -1,4 +1,13 @@
 #!/usr/bin/perl
+####################################################################################################################
+# Script to get all outstanding AWS Events (reboots/maintenance events) for all your instances.
+#
+# Includes a --nagios mode for running as a nagios plugin.
+#
+# Author: Brad Allison
+# Date: Sun Aug 16 18:45:08 EDT 2015
+#
+####################################################################################################################
 use strict ;
 use Getopt::Long;
 use Data::Dumper;
@@ -21,7 +30,6 @@ my %event_description_hash;
 my $nagios;
 my $result;
 my $count;
-my $aws_lookup="/usr/local/my_scripts/aws_lookup";  # Script I have for converting instance ID's to AWS Names.  You'll have to write your own. :)
 
 ##########################################
 # Get Passed in options
@@ -37,6 +45,7 @@ $result = GetOptions (
 get_event_data("us-east-1");
 get_event_data("us-west-1");
 get_event_data("us-west-2");
+lookup_instance_names();
 print_results();
 exit_code_for_nagios() if ($nagios) ;
 
@@ -56,10 +65,6 @@ sub get_event_data {
 			# print Dumper($_);
 			if ($_->{'InstanceId'}) {
 				$tmp_instance_id= $_->{'InstanceId'};  # String
-				my $cmd="$aws_lookup -n $tmp_instance_id";  #convert the instance-id into a hostname
-				$tmp_instance_name=`$cmd`;
-				chomp ($tmp_instance_name);
-				$tmp_instance_name =~ s/\s+$//;  # remove whitespace from the end
 				$instance_name_hash{$tmp_instance_id}=$tmp_instance_name;
 			} else {
 				foreach ( @{ $_->{'EventDetails'} }) {
@@ -72,6 +77,28 @@ sub get_event_data {
 		}
 	}
 }
+
+####################################################################
+# Sub for looking up AWS Instance Name from the instance-id
+####################################################################
+sub lookup_instance_names {
+	foreach my $tmp_instance_id ( keys %event_date_hash ) {
+		my $cmd ="aws ec2 describe-tags --filter Name=resource-id,Values=$tmp_instance_id Name=key,Values=Name --query '{Tags:Tags[].{AWSName:Value}}'"; 
+
+		my $lookup_results_str=`$cmd`;
+		my $obj= $json->decode($lookup_results_str);
+		#print Dumper($obj) ;
+		$instance_name_hash{$tmp_instance_id}=$obj->{'Tags'}->[0]->{'AWSName'} ; # Since it will be the first value returned, can use 0
+		#
+		# Other way below
+		# foreach ( @{ $obj->{'Tags'} }) {
+			#print Dumper($_);
+			# my $tmp_aws_name= $_->{'AWSName'} ;
+			# print $tmp_aws_name;
+		# }
+	}
+}
+
 
 ##################################
 # Print and return the data
