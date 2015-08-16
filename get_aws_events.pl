@@ -45,7 +45,6 @@ $result = GetOptions (
 get_event_data("us-east-1");
 get_event_data("us-west-1");
 get_event_data("us-west-2");
-lookup_instance_names();
 print_results();
 exit_code_for_nagios() if ($nagios) ;
 
@@ -54,7 +53,7 @@ exit_code_for_nagios() if ($nagios) ;
 ###########################
 sub get_event_data {
 	my $region=shift;
-	my $cmd="aws --region $region ec2 describe-instance-status --filter Name=event.description,Values=* --query '{EventStatus:InstanceStatuses[].{Event:[{InstanceId:InstanceId},{EventDetails:Events[]}]}}'";
+	my $cmd="aws ec2 describe-instance-status --region $region --filter Name=event.description,Values=* --query '{EventStatus:InstanceStatuses[].{Event:[{InstanceId:InstanceId},{EventDetails:Events[]}]}}'";
 	my $events_str=`$cmd`;
 	my $obj= $json->decode($events_str);
 	#print Dumper($obj) ;
@@ -70,6 +69,7 @@ sub get_event_data {
 		$event_date_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'NotBefore'};  # String
 		$event_code_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'Code'};  # String
 		$event_description_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'Description'};  # String
+		$instance_name_hash{$tmp_instance_id}=get_aws_name($tmp_instance_id,$region);
 			
 	}
 }
@@ -77,15 +77,14 @@ sub get_event_data {
 ####################################################################
 # Sub for looking up AWS Instance Name from the instance-id
 ####################################################################
-sub lookup_instance_names {
-	foreach my $tmp_instance_id ( keys %event_date_hash ) {
-		my $cmd ="aws ec2 describe-tags --filter Name=resource-id,Values=$tmp_instance_id Name=key,Values=Name --query '{Tags:Tags[].{AWSName:Value}}'"; 
-
-		my $lookup_results_str=`$cmd`;
-		my $obj= $json->decode($lookup_results_str);
-		#print Dumper($obj) ;
-		$instance_name_hash{$tmp_instance_id}=$obj->{'Tags'}->[0]->{'AWSName'} ; # Since it will be the first value returned, can use 0
-	}
+sub get_aws_name {
+	my $tmp_instance_id=shift;
+	my $tmp_region=shift;
+	my $cmd ="aws ec2 describe-tags --region $tmp_region --filter Name=resource-id,Values=$tmp_instance_id Name=key,Values=Name --query '{Tags:Tags[].{AWSName:Value}}'"; 
+	my $lookup_results_str=`$cmd`;
+	my $obj= $json->decode($lookup_results_str);
+	#print Dumper($obj) ;
+	return $obj->{'Tags'}->[0]->{'AWSName'} ; # Since it will be the first value returned, can use 0
 }
 
 
