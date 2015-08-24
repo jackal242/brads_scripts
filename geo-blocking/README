@@ -6,5 +6,8 @@ Install these two scripts into /etc/geo-blocking.
 
 You'll need to install an ipset init script as well.
 	
+	* ipset - move the script into /etc/init.d/ipset, then run "chkconfig --add ipset" to add it to the run levels.
+		- this will run just before iptables, because you have to load the ipsets before iptables can load.
+	
 	
 
