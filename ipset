@@ -1,0 +1,44 @@
+#!/bin/bash
+# ipset
+#
+# chkconfig: 345 07 93
+# description: Ipset for Geo Blocking
+# processname: ipset
+
+
+NAME="ipset"
+IPSETRULES="/etc/sysconfig/ipset"
+
+case "$1" in
+start)
+	printf "%-50s\n" "Starting $NAME... "
+	if [ -f $IPSETRULES ]; then
+		printf "%-50s\n" "Loading rules... "
+		ipset restore < $IPSETRULES
+	fi
+	
+;;
+status)
+	printf "%-50s\n" "Status for $NAME "
+	ipset save | grep -v create| awk '{print $1,$2}' | uniq -c | sed 's/add/rules in/g'
+
+;;
+stop)
+        
+	printf "%-50s\n" "Stopping $NAME "
+	for setname in `ipset list |grep Name | awk '{print $2}'`; do
+		printf "%-50s\n" "Flushing $setname ..."
+		ipset flush $setname
+		ipset destroy $setname 
+	done
+;;
+
+restart)
+  	$0 stop
+  	$0 start
+;;
+
+*)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+esac
