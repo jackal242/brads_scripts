@@ -1,0 +1,10 @@
+Install these two scripts into /etc/geo-blocking.
+
+	* refrsh-geoblocking.sh will configure your ipset for you.  This assumes you have ipset installed (yum install ipset).
+
+	* setup-iptables.sh will configure iptables to use the ipset rules.
+
+You'll need to install an ipset init script as well.
+	
+	
+
