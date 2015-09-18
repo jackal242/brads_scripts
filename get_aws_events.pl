@@ -12,7 +12,6 @@ use strict ;
 use Getopt::Long;
 use Data::Dumper;
 use JSON ;
-use strict;
 
 ###########################
 # My's
