@@ -24,8 +24,6 @@ if [ "$SQLFILE" != "-" -a ! -r "$SQLFILE" ]; then
     exit 1
 fi
 
-echo "COOKIE FILE FOUND = $SQLFILE"
-
 # We have to copy cookies.sqlite, because FireFox has a lock on it
 TMPFILE=`mktemp /tmp/cookies.sqlite.XXXXXXXXXX`
 cat "$SQLFILE" >> $TMPFILE
