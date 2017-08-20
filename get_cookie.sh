@@ -11,7 +11,8 @@ if [ "$#" -ge 1 ]; then
 else
     if tty -s; then
     # SQLFILE=$(ls -t ~/.mozilla/firefox/*/cookies.sqlite | head -1)
-    # I changed it - brad
+    # I changed it for people like me who have multiple profiles.- brad
+    # It picked the one with the most lines and assumes that's the one you use the most.
     SQLFILE=$(find ~ -type f -name cookies.sqlite -exec wc -l {} \+ | sort -rn |grep -v total| head -1 |egrep -o "/.*")
     else
     SQLFILE="-"     # Will use 'cat' below to read stdin
@@ -27,10 +28,7 @@ echo "COOKIE FILE FOUND = $SQLFILE"
 
 # We have to copy cookies.sqlite, because FireFox has a lock on it
 TMPFILE=`mktemp /tmp/cookies.sqlite.XXXXXXXXXX`
-echo "TEMPFILE=$TMPFILE"
-ls $TMPFILE
 cat "$SQLFILE" >> $TMPFILE
-ls $TMPFILE
 
 # This is the format of the sqlite database:
 # CREATE TABLE moz_cookies (id INTEGER PRIMARY KEY, name TEXT, value TEXT, host TEXT, path TEXT,expiry INTEGER, lastAccessed INTEGER, isSecure INTEGER, isHttpOnly INTEGER);
