@@ -12,7 +12,7 @@ else
     if tty -s; then
     # SQLFILE=$(ls -t ~/.mozilla/firefox/*/cookies.sqlite | head -1)
     # I changed it for people like me who have multiple profiles.- brad
-    # It picked the one with the most lines and assumes that's the one you use the most.
+    # It picks the one with the most lines and assumes that's the one you use the most.
     SQLFILE=$(find ~ -type f -name cookies.sqlite -exec wc -l {} \+ | sort -rn |grep -v total| head -1 |egrep -o "/.*")
     else
     SQLFILE="-"     # Will use 'cat' below to read stdin
