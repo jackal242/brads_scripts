@@ -52,7 +52,7 @@ do
 		# echo "already denied ip: [$ip]" ;
 		true	
 	else
-		# echo "Denying ip: $ip" | sendmail brad.allison@modmed.com
+		# echo "Denying ip: $ip" | sendmail brad.allison@XXXXXX.com
 		logger -p authpriv.notice "*** Blocking SSH attempt from: $ip"
 		/sbin/iptables -I INPUT -s $ip -j DROP
 	fi
