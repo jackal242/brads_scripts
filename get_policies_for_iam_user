@@ -1,0 +1,23 @@
+#!/bin/bash
+##################################################################################################################
+#
+# Description: Script to list all and resolve all policies associated with a given IAM user
+#
+# Author: Brad Allison
+# Date:   Mon Oct 23 15:04:18 UTC 2017
+##################################################################################################################
+
+
+IAMUSER=$1
+
+	
+CMD1=$(aws iam list-user-policies --user-name $IAMUSER --query {USER_MANAGED_POLICY:PolicyNames[]} --output text )
+CMD2=$(aws iam list-attached-user-policies --user-name $IAMUSER --query {USER_MANAGED_POLICY:AttachedPolicies[].PolicyName} --output text )
+CMD3=$(for i in `aws iam list-groups-for-user --user-name $IAMUSER --query "Groups[].GroupName[]" --output=text | sed 's/\s\+/\n/g'` ; do 
+	aws iam list-group-policies --group-name $i --query {GROUP_INLINE_POLICY:PolicyNames[]} --output text | sed "s/INLINE_POLICY/INLINE_POLICY_($i)/g"
+	aws iam list-attached-group-policies --group-name $i --query {GROUP_MANAGED_POLICY:AttachedPolicies[].PolicyName} --output text | sed "s/MANAGED_POLICY/MANAGED_POLICY_($i)/g"
+
+done)
+
+echo -e "$CMD1\n$CMD2\n$CMD3\n" | column -t 
+
