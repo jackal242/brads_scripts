@@ -13,7 +13,7 @@ IAMUSER=$1
 	
 CMD1=$(aws iam list-user-policies --user-name $IAMUSER --query {USER_MANAGED_POLICY:PolicyNames[]} --output text )
 CMD2=$(aws iam list-attached-user-policies --user-name $IAMUSER --query {USER_MANAGED_POLICY:AttachedPolicies[].PolicyName} --output text )
-CMD3=$(for i in `aws iam list-groups-for-user --user-name $IAMUSER --query "Groups[].GroupName[]" --output=text | sed 's/\s\+/\n/g'` ; do 
+CMD3=$(for i in `aws iam list-groups-for-user --user-name $IAMUSER --query "Groups[].[GroupName]" --output=text ` ; do 
 	aws iam list-group-policies --group-name $i --query {GROUP_INLINE_POLICY:PolicyNames[]} --output text | sed "s/INLINE_POLICY/INLINE_POLICY_($i)/g"
 	aws iam list-attached-group-policies --group-name $i --query {GROUP_MANAGED_POLICY:AttachedPolicies[].PolicyName} --output text | sed "s/MANAGED_POLICY/MANAGED_POLICY_($i)/g"
 
