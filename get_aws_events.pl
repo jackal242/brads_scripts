@@ -12,6 +12,7 @@ use strict ;
 use Getopt::Long;
 use Data::Dumper;
 use JSON ;
+use strict;
 
 ###########################
 # My's
@@ -46,6 +47,9 @@ $result = GetOptions (
 get_event_data("us-east-1");
 get_event_data("us-west-1");
 get_event_data("us-west-2");
+get_aws_name_hash("us-east-1");
+get_aws_name_hash("us-west-1");
+get_aws_name_hash("us-west-2");
 print_results();
 exit_code_for_nagios() if ($nagios) ;
 
@@ -72,23 +76,27 @@ sub get_event_data {
 		$event_date_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'NotBefore'};  # String
 		$event_code_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'Code'};  # String
 		$event_description_hash{$tmp_instance_id}=$_->{'Event'}[1]->{'EventDetails'}[0]->{'Description'};  # String
-		$instance_name_hash{$tmp_instance_id}=get_aws_name($tmp_instance_id,$region); # go lookup the aws Name Tag
 	}
 }
 
 ####################################################################
 # Sub for looking up AWS Name Tag from the instance-id
 ####################################################################
-sub get_aws_name {
-	my $tmp_instance_id=shift;
-	my $tmp_region=shift;
-	my $cmd ="aws ec2 describe-tags --region $tmp_region --filter Name=resource-id,Values=$tmp_instance_id Name=key,Values=Name --query '{Tags:Tags[].{Name:Value}}' --output json"; 
+sub get_aws_name_hash {
+	my $region=shift;
+	my $tmp_instance_id; # temperary just for this
+	my $cmd ="aws ec2 describe-tags --region $region --filters 'Name=resource-type,Values=instance' Name=key,Values=Name --query '{Tags:Tags[]}' ";
 	print "About to run '$cmd'\n" if ($debug);
 	sleep 5 if ($debug);
-	my $lookup_results_str=`$cmd`;
-	my $obj= $json->decode($lookup_results_str);
-	#print Dumper($obj) ;
-	return $obj->{'Tags'}->[0]->{'Name'} ; # Since it will be the first value returned, can use 0
+	my $aws_name_results_str=`$cmd`;
+	my $obj= $json->decode($aws_name_results_str);
+	# print Dumper($obj) ;
+	foreach ( @{ $obj->{'Tags'} }) {
+		# print Dumper($_);
+		$tmp_instance_id=$_->{'ResourceId'} ;                 # ResourceID is the instance id
+		$instance_name_hash{$tmp_instance_id}=$_->{'Value'} ; # Value is the Name of the instance, since we used "Name=key,Values=Name" in our query
+	}
+		
 }
 
 
@@ -100,6 +108,7 @@ sub print_results{
 	# Return the list sorted by date.  Soonest first.
 	foreach my $tmp_instance_id (sort { $event_date_hash{$a} cmp $event_date_hash{$b} } keys %event_date_hash ) {
 		next if ($nagios && $event_description_hash{$tmp_instance_id}=~ /Completed/) ; # if nagios flag do not print completed.
+		next if ($nagios && $event_description_hash{$tmp_instance_id}=~ /Canceled/) ;  # if nagios flag do not print canceled.
 		printf("%-13.13s %-20.20s %-8s %-20s %-25s\n", $event_date_hash{$tmp_instance_id}, $instance_name_hash{$tmp_instance_id}, $tmp_instance_id,$event_code_hash{$tmp_instance_id}, $event_description_hash{$tmp_instance_id});
 		$count++;
 	}
