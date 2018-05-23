@@ -1,0 +1,6 @@
+#!/bin/bash
+for i in us-east-1 us-west-2; do  
+	aws ec2 describe-instances --filter "Name=instance-state-name,Values=running"  --output json --region $i \
+		| jq '.Reservations[].Instances[] | select(contains({Tags: [{Key: "Backup"}, {Value: ""}]}) | not)' \
+		| jq -r '.Tags[] | select(.Key=="Name") |.Value'; 
+done  |sort 
