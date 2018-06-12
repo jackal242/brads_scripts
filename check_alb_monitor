@@ -1,0 +1,258 @@
+#!/usr/bin/perl
+#############################################
+# use
+#############################################
+use Getopt::Long;
+use strict;
+use Data::Dumper;
+use JSON ;
+
+$|=1;  # turn off buffering
+
+
+
+#############################################
+# my's
+#############################################
+my $json = JSON->new->allow_nonref;
+my $alb_name;
+my $alb_arn;
+my $debug;
+my @regions=qw(us-east-1 us-west-2);
+my $region;
+my %instance_state_hash;
+my %instance_name_hash;
+my %targetgroup_name_hash;
+my %instance_targetgroup_name_hash;
+my %instances_in_targetgroup_arn_hash;
+                
+
+
+######################################################################################
+# Check for AWS command
+######################################################################################
+my $aws_cmd="";
+if ( -e "/usr/local/bin/aws" ) {
+        $aws_cmd="/usr/local/bin/aws" ;
+} elsif ( -e "/usr/bin/aws" ) {
+        $aws_cmd="/usr/bin/aws" ;
+} else {
+        print "Please install the aws command.\n";
+        exit 1;
+}
+
+
+
+
+######################################################################################
+# Options
+######################################################################################
+my $result = GetOptions (
+        "debug"         => \$debug,    # flag
+        "region=s"      => \$region,   # string
+        "alb_name=s"    => \$alb_name, # string
+);
+if ($alb_name eq ""){
+	print "Please provide alb_name...\n";
+	usage();
+	exit 3;
+}
+
+#############################################
+# Main
+#############################################
+if ($region eq "") {
+	$region=guess_the_region() ;
+	print "REGION WAS GUESSED=$region\n" if $debug;
+}
+$alb_arn=get_alb_arn($alb_name);
+get_targetgroup_arn_and_check($alb_arn);
+return_results();
+
+#############################################
+#############################################
+#############################################
+sub get_alb_arn {
+	my $cmd = "$aws_cmd elbv2 describe-load-balancers --region $region --names $alb_name --query LoadBalancers[].LoadBalancerArn --output text";
+        print "About to run: " . $cmd . "\n" if ($debug);
+        sleep 2 if ($debug);
+        my $tmp_alb_arn=`$cmd`;
+	chomp($tmp_alb_arn); # cut white space and character return from the end
+	if ($tmp_alb_arn ne "") {
+        	return($tmp_alb_arn);
+	} else {
+		print "UNKNOWN: ERROR: Unable to locate ALB $alb_name in $region\n";
+		exit 3;
+		
+	}
+}
+
+sub get_targetgroup_arn_and_check {
+	my $cmd = "$aws_cmd elbv2 describe-target-groups --load-balancer-arn $alb_arn";
+        print "About to run: " . $cmd . "\n" if ($debug);
+        sleep 2 if ($debug);
+	my $events_str=`$cmd`;
+        if ($events_str =~ /There is no/) {
+                print "ELB $alb_name ($alb_arn) not found\n";
+                exit 1 ;
+        }
+        if ($events_str =~ /error/i ) {
+                print "$events_str" ;
+                exit 1 ;
+        }
+        my $obj= $json->decode($events_str);
+        # print Dumper($obj) ;
+        # print Dumper($obj->[0]->[0]->{'InstanceId'});
+        # print Dumper($obj->[0]->[0]->{'Name'}[0]);
+        foreach ( @{ $obj->{'TargetGroups'} }) {
+                # print Dumper($_);
+                my $targetgroup_arn= $_->{'TargetGroupArn'};                                                
+                $targetgroup_name_hash{$targetgroup_arn}=$_->{'TargetGroupName'};                          # make a hash of the TargetGroupNames, key=targetgroup_arn
+                print "TGARN: $targetgroup_name_hash{$targetgroup_arn} $targetgroup_arn\n" if ($debug);
+		next if ($targetgroup_arn =~ /nowhere/);  # skip the ones with nowhere in the name
+		check_the_targetgroup_backends($targetgroup_arn);                                          # check the targetgroup_arn backend instances
+	}
+
+}
+sub check_the_targetgroup_backends {
+	my $tmp_targetgroup_arn = shift;
+	my $tmp_instance_id;
+	print "About to check TGARN= $tmp_targetgroup_arn of $targetgroup_name_hash{$tmp_targetgroup_arn} \n" if ($debug);
+        sleep 2 if ($debug);
+	# my $cmd = "$aws_cmd elbv2 describe-target-health --target-group-arn $tmp_targetgroup_arn --query TargetHealthDescriptions[].TargetHealth[].State[]";
+	my $cmd = "$aws_cmd elbv2 describe-target-health --target-group-arn $tmp_targetgroup_arn";
+        print "About to run: " . $cmd . "\n" if ($debug);
+        sleep 2 if ($debug);
+        my $events_str=`$cmd`;
+        if ($events_str =~ /There is no/) {
+                print "ELB $alb_name (TGARN:$tmp_targetgroup_arn) not found\n";
+                exit 1 ;
+        }
+        if ($events_str =~ /error/i ) {
+                print "$events_str" ;
+                exit 1 ;
+        }
+	        
+	my $obj= $json->decode($events_str);
+        # print Dumper($obj) ;
+        foreach ( @{ $obj->{'TargetHealthDescriptions'} }) {
+                # print Dumper($_);
+                $tmp_instance_id= $_->{'Target'}->{'Id'};  # String
+                $instance_state_hash{$tmp_instance_id}= $_->{'TargetHealth'}->{'State'};                            # make a hash of the STATE of the instance, key=instance_id
+                $instance_targetgroup_name_hash{$tmp_instance_id}= $targetgroup_name_hash{$tmp_targetgroup_arn};    # make a hash of all the target group names, key=instance_id
+		push @{$instances_in_targetgroup_arn_hash{$tmp_targetgroup_arn}}, $tmp_instance_id;                 # make an array of instances PER targetgroup_arn, key=targetgroup_arn
+                print "STATE: $tmp_instance_id is $instance_state_hash{$tmp_instance_id} \n" if ($debug);
+        }
+}
+
+sub return_results {
+        my $number_of_backends=scalar(keys %instance_state_hash);
+        my $alert_count = 0 ;
+        my $exit_code = 3 ;
+	my $msg =();
+	my %bad_instance_hash;
+	my %count_bad_in_targetgroup;
+	my $critical_or_warning="";
+	foreach my $tmp_targetgroup_arn_id (keys %instances_in_targetgroup_arn_hash) {
+        	foreach my $tmp_instance_id (@{$instances_in_targetgroup_arn_hash{$tmp_targetgroup_arn_id}}) {
+			print "$tmp_targetgroup_arn_id: $tmp_instance_id\n" if ($debug);
+			if ($instance_state_hash{$tmp_instance_id} ne "healthy") {
+				$bad_instance_hash{$tmp_instance_id}=1;                # make a note of the instance id's that are bad
+				$count_bad_in_targetgroup{$tmp_targetgroup_arn_id}++;  # keep a count bad _per_ target group
+				$alert_count++;                                        # keep a total cout of all instances that are bad across all target groups
+			}
+		}
+
+		# print "Total instances in $targetgroup_name_hash{$tmp_targetgroup_arn_id} =" . scalar(@{$instances_in_targetgroup_arn_hash{$tmp_targetgroup_arn_id}}) . "\n" ;
+		# print "Total BAD instances in $targetgroup_name_hash{$tmp_targetgroup_arn_id} =" . $count_bad_in_targetgroup{$tmp_targetgroup_arn_id}  . "\n" ;
+
+		########################################################################################################
+		# Figure out warning/critical based on number of down out of total in targetgroup
+		# Tell the user how many are bad out of the total in the targetgroup
+		########################################################################################################
+		if ( $count_bad_in_targetgroup{$tmp_targetgroup_arn_id} == scalar(@{$instances_in_targetgroup_arn_hash{$tmp_targetgroup_arn_id}}) ) {
+			# if the total bad = total instances in the targetgroup, then it's critical
+			$msg=$msg . "All $count_bad_in_targetgroup{$tmp_targetgroup_arn_id} instances(s) in TG=$targetgroup_name_hash{$tmp_targetgroup_arn_id} are down.\n";
+                	$critical_or_warning="CRITICAL: ";
+			$exit_code = 2 ;
+		} elsif ($count_bad_in_targetgroup{$tmp_targetgroup_arn_id} > 0 ) {
+			$msg=$msg . "$count_bad_in_targetgroup{$tmp_targetgroup_arn_id} unhealthy instance(s) in TG=$targetgroup_name_hash{$tmp_targetgroup_arn_id} out of " . scalar(@{$instances_in_targetgroup_arn_hash{$tmp_targetgroup_arn_id}}) . " .\n";
+			if ($critical_or_warning !~ /CRITICAL/) {     # don't overide if we are already at critical for another targetgroup.
+                		$critical_or_warning="WARNING ";
+				$exit_code = 1 ;
+			}
+		}
+        }
+	########################################################################################################
+	# Now for each instance that's bad talk about it.
+	########################################################################################################
+        if ( $alert_count > 0 ) {
+		get_aws_name_hash();  # this way we only look up the hostnames if at least one is bad.  Otherwise don't look it up
+        	foreach my $tmp_instance_id (keys %bad_instance_hash ) {
+			$msg=$msg . "  \"$instance_name_hash{$tmp_instance_id}\" ($tmp_instance_id) of TG=$instance_targetgroup_name_hash{$tmp_instance_id} is $instance_state_hash{$tmp_instance_id}. \n";  
+		}
+	}
+
+	########################################################################################################
+	# Print the OK|WARNING|CRITICAL before the message
+	########################################################################################################
+	if ($critical_or_warning !~ /CRITICAL/ && $critical_or_warning !~ /WARNING/) {
+                print "OK: ";
+                $exit_code = 0 ;
+        	print "There are $alert_count instances down out of $number_of_backends backend instances. \n";
+        } else {	
+		print "$critical_or_warning: \n";
+	}
+
+	########################################################################################################
+	# And finally return the exit code and message
+	########################################################################################################
+	print "$msg";
+        exit $exit_code ;
+
+}
+
+
+
+sub guess_the_region {
+        if ($alb_name =~ /([0-9]+)-/) {
+                print "matched a name with $1 \n" if ($debug);
+                if ($1 % 2 == 0 ) {
+                        # it's even
+                        return "us-west-2";
+                } else {
+                        # it's odd
+                        return "us-east-1";
+                }
+        } else {
+                # Default to us-east-1
+                return "us-east-1";
+        }
+}
+
+
+sub usage {
+	print "Usage:\n $0 --alb_name <ALB> --region <region>\n";
+	print "Example:\n $0 --alb_name mybig01-ALB --region us-east-1\n";
+}
+
+
+####################################################################
+# Sub for looking up AWS Name Tag from the instance-id
+####################################################################
+sub get_aws_name_hash {
+        my $tmp_instance_id; # temperary just for this
+        my $cmd ="$aws_cmd ec2 describe-tags --region $region --filters 'Name=resource-type,Values=instance' Name=key,Values=Name --query '{Tags:Tags[]}' ";
+        print "About to run '$cmd'\n" if ($debug);
+        sleep 5 if ($debug);
+        my $aws_name_results_str=`$cmd`;
+        my $obj= $json->decode($aws_name_results_str);
+        # print Dumper($obj) ;
+        foreach ( @{ $obj->{'Tags'} }) {
+                # print Dumper($_);
+                $tmp_instance_id=$_->{'ResourceId'} ;                 # ResourceID is the instance id
+                $instance_name_hash{$tmp_instance_id}=$_->{'Value'} ; # Value is the Name of the instance, since we used "Name=key,Values=Name" in our query
+        }
+
+}
+
