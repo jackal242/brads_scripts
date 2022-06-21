@@ -1,0 +1,41 @@
+#!/bin/bash
+FULLSCREEN_MODE=0
+DEFAULT_WIDTH=1440
+DEFAULT_HEIGHT=810
+
+
+if [[ "$1" == "read" ]]; then
+	defaults read com.wizards.mtga "Screenmanager Resolution Width" 
+	defaults read com.wizards.mtga "Screenmanager Resolution Height" 
+	exit;
+fi
+
+# this forces Arena into full screen mode on startup, set back to 3 to reset
+# note that if you go into the Arena "Graphics" preference panel, it will reset all of these
+# and you will need to run these commands again
+defaults write com.wizards.mtga "Screenmanager Fullscreen mode" -integer $FULLSCREEN_MODE
+
+
+# Dynamically get the resolution instead
+#max_resolution=$(system_profiler SPDisplaysDataType |grep Resolution | egrep -o [0-9]+)
+resolution=$(osascript -e 'tell application "Finder" to get bounds of window of desktop' | cut -d, -f3,4 | egrep -o [0-9]+)
+
+if [[ "$resolution" =~ ([0-9]+)[[:space:]]([0-9]+) ]]; then
+  WIDTH=${BASH_REMATCH[1]}
+  HEIGHT=${BASH_REMATCH[2]}
+else
+  echo "no match found"
+  WIDTH=$DEFAULT_WIDTH
+  HEIGHT=$DEFAULT_HEIGHT
+fi
+
+if [[ "$1" == "override" ]]; then
+  WIDTH=$DEFAULT_WIDTH
+  HEIGHT=$DEFAULT_HEIGHT
+fi
+
+
+defaults write com.wizards.mtga "Screenmanager Resolution Width" -integer $WIDTH
+defaults write com.wizards.mtga "Screenmanager Resolution Height" -integer $HEIGHT
+defaults read com.wizards.mtga "Screenmanager Resolution Width" 
+defaults read com.wizards.mtga "Screenmanager Resolution Height" 
