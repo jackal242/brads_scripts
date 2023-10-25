@@ -13,7 +13,6 @@
 #
 #
 
-#echo     $0 https://online.anyflip.com/jbwjh/mals/files/mobile
 URL=$1
 
 
