@@ -41,8 +41,10 @@ for i in {1..10000}; do
 	# Handle leading 0's for order
 	#################
 	if [[ "$i" -lt "10" ]]; then
-   		j=00$i
+   		j=000$i
 	elif [[ "$i" -lt "100" ]]; then
+   		j=00$i
+	elif [[ "$i" -lt "1000" ]]; then
    		j=0$i
 	else
    		j=$i
