@@ -15,6 +15,10 @@
 
 URL=$1
 
+TMPDIR=$(mktemp -d)
+cd $TMPDIR
+echo -n "Downloading jpg's to -> "
+pwd
 
 function usage() {
 	echo   USAGE:
@@ -51,7 +55,7 @@ for i in {1..10000}; do
 
 	echo curl -s ${URL}files/mobile/$i.jpg -o $j.jpg; 
 	curl -s ${URL}files/mobile/$i.jpg -o $j.jpg; 
-	file $j.jpg |grep JPEG > /dev/null
+	file $j.jpg |grep JPEG > /dev/null 
 	if [[ "$?" -gt "0" ]]; then
 		echo breaking at $j.jpg
 		rm $j.jpg
@@ -62,3 +66,6 @@ done
 convert *.jpg -auto-orient combined.pdf
 ocrmypdf combined.pdf FINAL-ocr.pdf
 
+echo "------------------------"
+echo -n "Final OCR'ed pdf file at ->"
+echo "$TMPDIR/FINAL-ocr.pdf"
