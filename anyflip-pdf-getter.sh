@@ -8,21 +8,16 @@
 # Requires:  ImageMagik for the convert command
 #  Use: brew install imagemagick
 #
-# Requires: ocemypdf
+# Requires: ocrmypdf
 #  Use: brew install ocrmypdf
 #
 #
 
 URL=$1
 
-TMPDIR=$(mktemp -d)
-cd $TMPDIR
-echo -n "Downloading jpg's to -> "
-pwd
-
 function usage() {
 	echo   USAGE:
-	echo     $0 https://online.anyflip.com/jbwjh/mals/
+	echo     $0 https://anyflip.com/jbwjh/mals/
 	exit;
 }
 
@@ -30,7 +25,7 @@ if [[ $URL == "" ]] ; then
   usage ;
 fi
 
-require_string='online.anyflip.com'
+require_string='anyflip.com'
 if [[ $URL == *"$require_string"* ]]; then
   true
 else
@@ -38,34 +33,13 @@ else
   usage ;
 fi
 
+/Users/jackal/bin/anyflip/bin/anyflip-downloader  -title combined-pdf $URL
+ocrmypdf combined-pdf.pdf /tmp/FINAL-ocr.pdf
 
-for i in {1..10000}; do 
-	#################
-	# Handle leading 0's for order
-	#################
-	if [[ "$i" -lt "10" ]]; then
-   		j=000$i
-	elif [[ "$i" -lt "100" ]]; then
-   		j=00$i
-	elif [[ "$i" -lt "1000" ]]; then
-   		j=0$i
-	else
-   		j=$i
-	fi
-
-	echo curl -s ${URL}files/mobile/$i.jpg -o $j.jpg; 
-	curl -s ${URL}files/mobile/$i.jpg -o $j.jpg; 
-	file $j.jpg |grep JPEG > /dev/null 
-	if [[ "$?" -gt "0" ]]; then
-		echo breaking at $j.jpg
-		rm $j.jpg
-		break
-        fi
-done
-
-convert *.jpg -auto-orient combined.pdf
-ocrmypdf combined.pdf FINAL-ocr.pdf
 
 echo "------------------------"
 echo -n "Final OCR'ed pdf file at ->"
-echo "$TMPDIR/FINAL-ocr.pdf"
+echo "/tmp/FINAL-ocr.pdf"
+
+#clean up
+rm combined-pdf.pdf
