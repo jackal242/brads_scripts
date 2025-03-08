@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# To just OCR an image use tesseract instead:
+#  tesseract input.png out   # it adds .txt to the out
+# 
+# Create a text file
+#  ocrmypdf --sidecar output.txt input.pdf output.pdf --force-ocr
+#  ocrmypdf --sidecar output.txt input.pdf output.pdf --tesseract-timeout 0 --redo-ocr
+# 
+#  for i in `ls *.png|egrep -v 'Character|printme'`; do tesseract $i ocr-txt/$i; done
+#
+# Note this uses tesseract under the covers.
+FILENAME=$1
+
+if ! output=$(echo $FILENAME | egrep \.pdf) ; then
+	echo "$FILENAME is not a pdf file."
+fi
+
+if ! output=$(file $FILENAME | grep 'PDF document') ; then
+	echo "$FILENAME is not a pdf file."
+fi
+
+BASENAME=$(echo $FILENAME | cut -f1 -d. )
+
+
+ocrmypdf $BASENAME.pdf $BASENAME-ocr.pdf
+

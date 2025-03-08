@@ -1,0 +1,7 @@
+#!/bin/bash
+
+SHORTNAME=$( echo $1 | rev | cut -f2 -d. | rev )
+#echo $SHORT
+
+ocrmypdf $1 $SHORTNAME-OCR-redo.pdf --redo-ocr  --output-type pdf
+

@@ -1,0 +1,7 @@
+#/bin/bash
+
+INPUT_FILE=$1
+OUTPUT_FILE=$(echo $1 | sed 's/mkv/mp4/')
+
+
+ffmpeg -i "$INPUT_FILE" -codec copy "$OUTPUT_FILE"
