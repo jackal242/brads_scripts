@@ -1,60 +1,44 @@
 #!/bin/bash
-# Old Example: wakeonlan -i 192.168.0.255 30:9C:23:8E:5A:0C
 
-# List of MAC addresses to wake up
-# Add or remove MAC addresses as needed
-MAC_ADDRESSES=(
-  "9C:36:D0:20:B6:F1"  # Device 1 (e.g., Gaming PC - Wi-Fi)
-  "30:9C:23:8E:5A:0C"  # Device 1 (e.g., Gaming PC - Ethernet 2)
-)
+# Predefined MAC address
+MAC_ADDRESS="30:9c:23:8e:5a:c"  # My MSI desktop MAC address to wake up
+#MAC_ADDRESS="30:9C:23:8E:5A:0C"
 
-# Function to ensure MAC address has leading zeros where needed
-fix_mac_format() {
-  local mac="$1"
-  local fixed_mac=""
-  
-  IFS=':' read -ra MAC_PARTS <<< "$mac"
-  
-  for part in "${MAC_PARTS[@]}"; do
-    # If the part is one character, add a leading zero
-    if [[ ${#part} -eq 1 ]]; then
-      fixed_mac+="0$part:"
-    else
-      fixed_mac+="$part:"
+# Default broadcast IP (adjust if needed)
+BROADCAST_IP="192.168.0.255"
+
+# Function to validate MAC address
+validate_mac() {
+    # Remove any existing whitespace
+    local cleaned_mac=$(echo "$1" | tr -d ' ')
+    
+    # Split into octets
+    IFS=':' read -ra ADDR <<< "$cleaned_mac"
+    
+    # Validate we have 6 octets
+    if [[ ${#ADDR[@]} -ne 6 ]]; then
+        echo "Invalid MAC address: Must have 6 octets" >&2
+        return 1
     fi
-  done
-  
-  # Remove the trailing colon
-  echo "${fixed_mac%:}"
+    
+    echo "$cleaned_mac"
 }
 
-# Loop through each MAC address
-for mac in "${MAC_ADDRESSES[@]}"; do
-  # Fix MAC address format if needed
-  fixed_mac=$(fix_mac_format "$mac")
-  
-  echo "Sending Wake-on-LAN packet to: $fixed_mac"
-  
-  # Define the command based on available tools
-  if command -v wakeonlan &> /dev/null; then
-    CMD="wakeonlan -i 192.168.0.255 \"$fixed_mac\""
-  elif [ -f "./wakeonlan.sh" ]; then
-    CMD="./wakeonlan.sh \"$fixed_mac\""
-  else
-    CMD="python -c \"import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1); mac=bytes.fromhex('${fixed_mac}'.replace(':', '')); s.sendto(bytes.fromhex('FF'*6) + mac*16, ('255.255.255.255', 9))\""
-  fi
-  
-  # Echo the command being executed
-  echo "Running command: $CMD"
-  
-  # Execute the command
-  eval "$CMD" 
+# Validate MAC address
+formatted_mac=$(validate_mac "$MAC_ADDRESS")
+if [[ $? -ne 0 ]]; then
+    echo "MAC address validation failed" >&2
+    exit 1
+fi
 
-  echo "Wake packet sent to $fixed_mac"
-  echo "------------------------"
-  
-  # Optional: Add a small delay between sending packets
-  sleep 1
-done
+# Check if wakeonlan is installed
+if ! command -v wakeonlan &> /dev/null; then
+    echo "wakeonlan command not found. Please install it." >&2
+    exit 1
+fi
 
-echo "All wake packets sent successfully!"
+# Send Wake-on-LAN packet
+echo "Sending Wake-on-LAN to $formatted_mac"
+wakeonlan -i $BROADCAST_IP $formatted_mac
+
+echo "Wake-on-LAN command completed."
